@@ -31,7 +31,15 @@ def create_client_pdf(client: dict) -> bytes:
         pdf.multi_cell(0, 8, texte)
         pdf.ln(1)
 
-    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+    # Récupère le PDF en mémoire
+    raw = pdf.output(dest="S")
+
+    # Si c'est une string → on encode / si bytes → on renvoie directement
+    if isinstance(raw, str):
+        pdf_bytes = raw.encode("latin-1")
+    else:
+        pdf_bytes = raw
+
     return pdf_bytes
 
 
