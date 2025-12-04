@@ -1,47 +1,99 @@
 import streamlit as st
+from fpdf import FPDF
+import pandas as pd
 
 st.set_page_config(page_title="Logiciel de production", page_icon="📦", layout="centered")
 
-st.title("📂 Fichier magasin")
+# ---------- Initialisation de l'état ----------
+if "clients" not in st.session_state:
+    st.session_state["clients"] = []  # liste de dictionnaires
 
-st.write("Renseigne ci-dessous les informations du magasin.")
 
-# On utilise un formulaire pour avoir un vrai bouton "Enregistrer"
-with st.form("fiche_magasin"):
-    designation_interne = st.text_input("Désignation interne")
-    enseigne = st.text_input("Enseigne")
-    adresse = st.text_area("Adresse complète")
-    raison_sociale = st.text_input("Raison sociale de la société")
-    nom_referent = st.text_input("Nom de la personne référente")
-    poste_referent = st.text_input("Poste du référent")
-    contact_referent = st.text_input("Contact référent (téléphone)")
-    mail_facturation = st.text_input("Mail facturation")
-    remise_appliquee = st.number_input("Remise appliquée (%)", min_value=0.0, max_value=100.0, step=0.5)
+# ---------- Fonction utilitaire : création PDF ----------
+def create_client_pdf(client: dict) -> bytes:
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
 
-    submit = st.form_submit_button("Enregistrer le magasin")
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Fiche client", ln=True)
 
-# Petit stockage en mémoire de session pour voir la liste des magasins saisis
-if "magasins" not in st.session_state:
-    st.session_state["magasins"] = []
+    pdf.ln(5)
+    pdf.set_font("Arial", "", 12)
 
-if submit:
-    magasin = {
-        "Désignation interne": designation_interne,
-        "Enseigne": enseigne,
-        "Adresse": adresse,
-        "Raison sociale": raison_sociale,
-        "Nom référent": nom_referent,
-        "Poste référent": poste_referent,
-        "Contact référent": contact_referent,
-        "Mail facturation": mail_facturation,
-        "Remise (%)": remise_appliquee,
-    }
-    st.session_state["magasins"].append(magasin)
-    st.success("✅ Magasin enregistré (dans la session).")
+    for key, value in client.items():
+        texte = f"{key} : {value}"
+        pdf.multi_cell(0, 8, texte)
+        pdf.ln(1)
 
-# Affichage de la liste des magasins saisis pendant la session
-if st.session_state["magasins"]:
-    st.subheader("📝 Magasins saisis (session actuelle)")
-    st.table(st.session_state["magasins"])
-else:
-    st.info("Aucun magasin saisi pour le moment.")
+    # Retourne le PDF sous forme de bytes
+    pdf_bytes = pdf.output(dest="S").encode("latin-1")
+    return pdf_bytes
+
+
+# ---------- Navigation ----------
+page = st.sidebar.radio(
+    "Navigation",
+    ["Création fichier client", "Fichier client"]
+)
+
+# ---------- Page 1 : Création fichier client ----------
+if page == "Création fichier client":
+    st.title("🧾 Création fichier client")
+    st.write("Renseigne ci-dessous les informations du client / magasin.")
+
+    with st.form("fiche_client"):
+        designation_interne = st.text_input("Désignation interne")
+        enseigne = st.text_input("Enseigne")
+        adresse = st.text_area("Adresse complète")
+        raison_sociale = st.text_input("Raison sociale de la société")
+        nom_referent = st.text_input("Nom de la personne référente")
+        poste_referent = st.text_input("Poste du référent")
+        contact_referent = st.text_input("Contact référent (téléphone)")
+        mail_facturation = st.text_input("Mail facturation")
+        remise_appliquee = st.number_input(
+            "Remise appliquée (%)",
+            min_value=0.0,
+            max_value=100.0,
+            step=0.5
+        )
+
+        submit = st.form_submit_button("Enregistrer le fichier client")
+
+    if submit:
+        client = {
+            "Désignation interne": designation_interne,
+            "Enseigne": enseigne,
+            "Adresse": adresse,
+            "Raison sociale": raison_sociale,
+            "Nom référent": nom_referent,
+            "Poste référent": poste_referent,
+            "Contact référent": contact_referent,
+            "Mail facturation": mail_facturation,
+            "Remise (%)": remise_appliquee,
+        }
+        st.session_state["clients"].append(client)
+        st.success("✅ Fiche client enregistrée (dans la session).")
+
+# ---------- Page 2 : Fichier client ----------
+elif page == "Fichier client":
+    st.title("📂 Fichier client")
+
+    if not st.session_state["clients"]:
+        st.info("Aucune fiche client enregistrée pour le moment.")
+    else:
+        # Tableau récapitulatif : 1 ligne / fiche client
+        df = pd.DataFrame(st.session_state["clients"])
+        st.subheader("Récapitulatif des fichiers clients")
+        st.dataframe(df, use_container_width=True)
+
+        st.subheader("Export PDF par fiche client")
+        for idx, client in enumerate(st.session_state["clients"]):
+            with st.expander(f"Fiche client #{idx + 1} - {client.get('Désignation interne', '')}"):
+                st.write(client)
+                pdf_bytes = create_client_pdf(client)
+                st.download_button(
+                    label="📄 Télécharger cette fiche en PDF",
+                    data=pdf_bytes,
+                    file_name=f"fiche_client_{idx + 1}.pdf",
+                    mime="appl
