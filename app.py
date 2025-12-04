@@ -2,14 +2,19 @@ import streamlit as st
 from fpdf import FPDF
 import pandas as pd
 
-st.set_page_config(page_title="Logiciel de production", page_icon="📦", layout="centered")
+# ------------------------ CONFIG ------------------------
+st.set_page_config(
+    page_title="Logiciel de production Shoyo",
+    page_icon="📦",
+    layout="centered"
+)
 
-# ---------- Initialisation de l'état ----------
+# ------------------------ SESSION STATE ------------------------
 if "clients" not in st.session_state:
-    st.session_state["clients"] = []  # liste de dictionnaires
+    st.session_state["clients"] = []  # Liste contenant les fiches clients
 
 
-# ---------- Fonction utilitaire : création PDF ----------
+# ------------------------ FONCTION : CREATION PDF ------------------------
 def create_client_pdf(client: dict) -> bytes:
     pdf = FPDF()
     pdf.add_page()
@@ -26,19 +31,20 @@ def create_client_pdf(client: dict) -> bytes:
         pdf.multi_cell(0, 8, texte)
         pdf.ln(1)
 
-    # Retourne le PDF sous forme de bytes
     pdf_bytes = pdf.output(dest="S").encode("latin-1")
     return pdf_bytes
 
 
-# ---------- Navigation ----------
+# ------------------------ NAVIGATION ------------------------
 page = st.sidebar.radio(
     "Navigation",
     ["Création fichier client", "Fichier client"]
 )
 
-# ---------- Page 1 : Création fichier client ----------
+
+# ------------------------ PAGE 1 : CRÉATION CLIENT ------------------------
 if page == "Création fichier client":
+
     st.title("🧾 Création fichier client")
     st.write("Renseigne ci-dessous les informations du client / magasin.")
 
@@ -73,27 +79,34 @@ if page == "Création fichier client":
             "Remise (%)": remise_appliquee,
         }
         st.session_state["clients"].append(client)
-        st.success("✅ Fiche client enregistrée (dans la session).")
+        st.success("✅ Fiche client enregistrée !")
 
-# ---------- Page 2 : Fichier client ----------
+
+# ------------------------ PAGE 2 : FICHIER CLIENT ------------------------
 elif page == "Fichier client":
+
     st.title("📂 Fichier client")
 
     if not st.session_state["clients"]:
         st.info("Aucune fiche client enregistrée pour le moment.")
     else:
-        # Tableau récapitulatif : 1 ligne / fiche client
         df = pd.DataFrame(st.session_state["clients"])
+
         st.subheader("Récapitulatif des fichiers clients")
         st.dataframe(df, use_container_width=True)
 
-        st.subheader("Export PDF par fiche client")
+        st.subheader("Téléchargement PDF")
         for idx, client in enumerate(st.session_state["clients"]):
             with st.expander(f"Fiche client #{idx + 1} - {client.get('Désignation interne', '')}"):
+
                 st.write(client)
+
                 pdf_bytes = create_client_pdf(client)
+
                 st.download_button(
                     label="📄 Télécharger cette fiche en PDF",
                     data=pdf_bytes,
                     file_name=f"fiche_client_{idx + 1}.pdf",
-                    mime="appl
+                    mime="application/pdf",
+                    key=f"pdf_{idx}"
+                )
